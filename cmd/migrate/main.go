@@ -18,7 +18,7 @@ func main() {
 
 	direction := os.Args[1]
 
-	db, err := sql.Open("sqlite3","./data.db")
+	db, err := sql.Open("sqlite3", "./data.db")
 
 	if err != nil {
 		log.Fatal(err)
@@ -28,7 +28,7 @@ func main() {
 
 	instance, err := sqlite3.WithInstance(db, &sqlite3.Config{})
 
-	if err != nil{
+	if err != nil {
 		log.Fatal(err)
 	}
 
@@ -38,20 +38,20 @@ func main() {
 		log.Fatal(err)
 	}
 
-	m, err := migrate.NewWithInstance("file", fSrc,"sqlite3",instance)
+	m, err := migrate.NewWithInstance("file", fSrc, "sqlite3", instance)
 
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	switch direction{
+	switch direction {
 	case "up":
-		if err := m.Up(); err != nil && err != migrate.ErrNoChange{
+		if err := m.Up(); err != nil && err != migrate.ErrNoChange {
 			log.Fatal(err)
 		}
 
 	case "down":
-		if err := m.Down(); err != nil && err != migrate.ErrNoChange{
+		if err := m.Down(); err != nil && err != migrate.ErrNoChange {
 			log.Fatal(err)
 		}
 	default:
