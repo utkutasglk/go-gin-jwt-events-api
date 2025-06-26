@@ -16,6 +16,9 @@ func(app *application) createEvent(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error":err.Error()})
 	}
 
+	user := app.getUserFromContext(c)
+	event.OwnerId = user.Id
+
 	err := app.models.Events.Insert(&event)
 
 	if err != nil {
@@ -27,6 +30,15 @@ func(app *application) createEvent(c *gin.Context) {
 	c.JSON(http.StatusCreated, event)
 }
 
+// getEvents return all events
+// 
+// @Summary Returns all events
+// @Description Returns all events
+// @Tags Events
+// @Accept Json
+// @Produce json
+// @Success 200 {object} []database.Event
+// @Router /api/v1/events [get]
 func (app *application) getAllEvents(c *gin.Context){
 	events, err := app.models.Events.GetAll()
 
@@ -62,6 +74,7 @@ func (app *application) updateEvent(c *gin.Context){
 		c.JSON(http.StatusBadRequest, gin.H{"error":"Invalid event ID"})
 	}
 
+	user := app.getUserFromContext(c)
 	existingEvent, err := app.models.Events.Get(id)
 
 	if err != nil {
@@ -71,6 +84,12 @@ func (app *application) updateEvent(c *gin.Context){
 
 	if existingEvent == nil {
 		c.JSON(http.StatusNotFound, gin.H{"error":"Event not found"})
+		return
+	}
+
+	if existingEvent.OwnerId != user.Id{
+		c.JSON(http.StatusForbidden, gin.H{"error":"You are not authorized to update this event"})
+		return
 	}
 
 	updatedEvent := &database.Event{}
@@ -79,6 +98,8 @@ func (app *application) updateEvent(c *gin.Context){
 		c.JSON(http.StatusBadRequest, gin.H{"error":err.Error()})
 		return
 	}
+
+	
 
 	updatedEvent.Id = id
 
@@ -93,6 +114,23 @@ func (app *application) deleteEvent(c *gin.Context){
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error":"Invalid event ID"})
+	}
+
+	user := app.getUserFromContext(c)
+	existingEvent, err := app.models.Events.Get(id)
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error":"Failed to retrieve event"})
+		return
+	}
+
+	if existingEvent == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error":"Event not found"})
+		return
+	}
+	if existingEvent.OwnerId != user.Id{
+		c.JSON(http.StatusForbidden, gin.H{"error":"You are not authorized to delete this event"})
+		return
 	}
 
 	if err := app.models.Events.Delete(id); err != nil {
@@ -137,6 +175,14 @@ func (app *application) addAttendeeToEvent(c *gin.Context){
 	if userToAdd == nil {
 		c.JSON(http.StatusNotFound, gin.H{"error":"User not found"})
 	}
+
+	user := app.getUserFromContext(c)
+
+	if event.OwnerId != user.Id{
+		c.JSON(http.StatusForbidden, gin.H{"error":"You are not authorized to add an attendee"})
+		return
+	}
+
 
 	existingAttendee, err := app.models.Attendees.GetByEventAndAttendee(event.Id, userToAdd.Id)
 
@@ -194,6 +240,23 @@ func (app *application) deleteAttendeeFromEvent( c *gin.Context){
 		c.JSON(http.StatusBadRequest, gin.H{"error":"Invalid user id"})
 		return
 	}
+
+	event, err := app.models.Events.Get(id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Something went wrong"})
+		return
+	}
+
+	if event == nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Event not found"})
+			return
+	}
+
+	user := app.getUserFromContext(c)
+	if event.OwnerId != user.Id {
+		c.JSON(http.StatusInternalServerError, gin.H{"error":"Failed to add content"})
+	}
+
 
 	err = app.models.Attendees.Delete(userId, id)
 	if err != nil {
